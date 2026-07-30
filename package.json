@@ -1,0 +1,50 @@
+{
+  "name": "nippotion",
+  "version": "1.0.0",
+  "description": "Notionの日報をラベルに応じたSlackチャンネルへ自動配信するbot",
+  "scripts": {
+    "start": "tsx cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsup",
+    "prepublishOnly": "npm run build"
+  },
+  "author": "Kenichi Takahashi",
+  "license": "MIT",
+  "dependencies": {
+    "@holiday-jp/holiday_jp": "^2.5.1",
+    "@notionhq/client": "^5.22.0",
+    "@slack/web-api": "^7.17.0",
+    "dayjs": "^1.11.21",
+    "p-retry": "^8.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "^24.13.3",
+    "eslint": "9.39.5",
+    "tsup": "8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "brace-expansion@1": "^5.0.8",
+    "esbuild": "^0.28.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kenchan/nippotion.git"
+  },
+  "bin": {
+    "nippotion": "dist/cli.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ]
+}
