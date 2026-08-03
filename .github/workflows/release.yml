@@ -40,7 +40,9 @@ jobs:
         with:
           ref: ${{ needs.tagpr.outputs.tag }}
 
-      - uses: actions/setup-node@v6
+      # v6 still writes a dummy NODE_AUTH_TOKEN into .npmrc that can break OIDC
+      # Trusted Publishing (fixed only in v7, see actions/setup-node#1440/#1558)
+      - uses: actions/setup-node@v7
         with:
           node-version-file: '.node-version'
           cache: 'npm'
@@ -62,6 +64,12 @@ jobs:
       # bundled npm is older
       - name: Update npm
         run: npm install -g npm@latest
+
+      # Belt-and-suspenders: even fixed setup-node versions have intermittently
+      # shipped a placeholder _authToken line that makes npm skip the OIDC
+      # exchange and fail with ENEEDAUTH/404. Strip it so OIDC is used.
+      - name: Remove placeholder npm auth token
+        run: sed -i '/_authToken/d' "${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
 
       - name: Publish to npm
         run: npm publish
