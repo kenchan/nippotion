@@ -1,15 +1,15 @@
-# 利用側リポジトリに置くworkflowの例。
-# リポジトリ直下に nippotion.json を置き、Secretsに NOTION_API_TOKEN / SLACK_BOT_API_TOKEN を登録して使う。
+# Example workflow for a repository using nippotion.
+# Place nippotion.json at the repo root and register NOTION_API_TOKEN / SLACK_BOT_API_TOKEN as secrets.
 name: nippotion
 
 on:
   schedule:
-    # 9:30 JST（平日判定はnippotion側で行うため毎日起動してよい）
+    # 9:30 JST (business-day filtering is handled by nippotion, so it's fine to run daily)
     - cron: '30 0 * * *'
   workflow_dispatch:
     inputs:
       debug_mode:
-        description: 'デバッグモード (Slackに投稿しない)'
+        description: 'Debug mode (does not post to Slack)'
         type: boolean
         default: false
 
@@ -17,15 +17,15 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      # 自リポジトリのnippotion.jsonを取得するために必要
+      # Needed to fetch this repository's own nippotion.json
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
           node-version: 24
 
+      # The timezone for date evaluation is set via nippotion.json's timezone field
       - run: npx nippotion@1 ${{ github.event.inputs.debug_mode == 'true' && '--debug' || '' }}
         env:
-          TZ: 'Asia/Tokyo'
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           SLACK_BOT_API_TOKEN: ${{ secrets.SLACK_BOT_API_TOKEN }}

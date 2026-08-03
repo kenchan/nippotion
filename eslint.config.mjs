@@ -4,13 +4,13 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  // node_modulesはデフォルトでignoreされるが、.claude/配下の過去worktreeは明示的に除外が必要
-  globalIgnores(['node_modules/**', '.claude/**']),
+  // node_modules is ignored by default, but stale worktrees under .claude/ must be excluded explicitly
+  globalIgnores(['node_modules/**', '.claude/**', 'dist/**']),
   {
-    files: ['main.ts', 'cli.ts', 'tsup.config.ts', '__tests__/**/*.ts'],
+    files: ['src/**/*.ts', 'tsup.config.ts', 'vitest.config.ts', '__tests__/**/*.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     rules: {
-      // any再流入の防止が今回のESLint導入の主目的
+      // Keeping `any` from creeping back in is the main reason ESLint was introduced
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },

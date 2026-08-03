@@ -1,5 +1,8 @@
 {
   "dataSourceId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timezone": "Asia/Tokyo",
+  "language": "ja",
+  "holidays": "jp",
   "properties": {
     "title": "今日のひとこと",
     "labels": "所属",

@@ -1,70 +1,77 @@
-# nippotion（にっぽーしょん）
+# nippotion
 
-Notionのデータベースに書かれた日報（日記）を、ラベルに応じたSlackチャンネルへ毎朝自動配信するCLIツールです。**`npx nippotion` と設定ファイル1枚**で動きます。
+A CLI tool that delivers daily reports (diary entries) written in a Notion database to Slack channels based on their labels, every morning. Runs with **`npx nippotion` and a single config file**.
 
-- 平日の朝に**前営業日**の日報を配信します（土日と日本の祝日は[@holiday-jp/holiday_jp](https://github.com/holiday-jp/holiday_jp)でスキップ。月曜には金曜の日報が届きます）
-- 日報につけられたラベル（マルチセレクト）に応じて、複数のSlackチャンネルへ振り分けます
-- 毎回ランダムに1件を「ピックアップ日報」として紹介します
+- Delivers **the previous business day's** entries on weekday mornings (weekends are skipped; set `"holidays": "jp"` to also skip Japanese holidays via [@holiday-jp/holiday_jp](https://github.com/holiday-jp/holiday_jp). Monday delivers Friday's entries)
+- Routes entries to multiple Slack channels based on their labels (multi-select)
+- Randomly picks one entry each time to feature as the "pickup" entry
+- Timezone, holiday skipping, language (Japanese/English), and Slack message wording are all configurable (works for non-Japan offices and English-speaking workspaces too)
 
 ```bash
 npx nippotion --config nippotion.json
 ```
 
-スケジュール実行はGitHub Actions・cron・各種CIなど、Nodeが動く好きな環境に載せてください（GitHub Actionsの例は後述）。
+Run it on a schedule with GitHub Actions, cron, or any Node-capable CI (a GitHub Actions example is below).
 
-## 必要なもの
+## Requirements
 
-### Notionデータベース
+### Notion database
 
-日報を書き込むデータベースに、以下の4つのプロパティが必要です（名前は設定で変更可能）：
+The database you write daily reports into needs these four properties (names are configurable):
 
-| プロパティ | 種類 | 用途 |
+| Property | Type | Purpose |
 |---|---|---|
-| 今日のひとこと | タイトル | 日報のタイトル。Slackにはこれがリンクとして流れます |
-| 日付 | 日付 | 配信対象日の判定に使います |
-| 所属 | マルチセレクト | 配信先チャンネルの振り分けに使います |
-| 書いた人 | 作成者 | 書いた人の名前の表示に使います |
+| One-liner | Title | The entry's title. Posted to Slack as a link |
+| Date | Date | Used to determine which entries to deliver |
+| Team | Multi-select | Used to route entries to the right channel |
+| Author | Created by | Used to display the writer's name |
 
-### Notion Integration
+> [!NOTE]
+> The date property should hold **a date only, with no time component**. If a time is present, it may not match Notion's date filter and the entry could be skipped.
 
-1. [My integrations](https://www.notion.so/my-integrations)でIntegrationを作成し、APIトークンを控えます
-2. 対象データベースをIntegrationに共有（コネクト）します
-3. データベースの**データソースID**を控えます
+### Notion integration
 
-### Slack App
+1. Create an integration at [My integrations](https://www.notion.so/my-integrations) and note its API token
+2. Under the integration's capabilities, **enable "Read user information"** (no email address needed). Without it, the writer's name can't be retrieved and shows as "(unknown)"
+3. Share (connect) the target database with the integration
+4. Note the database's **data source ID**
 
-1. [Slack API](https://api.slack.com/apps)でAppを作成し、Bot Token Scopeに `chat:write` を追加してワークスペースにインストールします
-2. Bot User OAuth Token（`xoxb-`で始まる）を控えます
-3. **配信先の各チャンネルにbotユーザーを招待**します（招待されていないチャンネルには投稿できません）
+### Slack app
 
-## 使い方
+1. Create an app at [Slack API](https://api.slack.com/apps), add the `chat:write` Bot Token Scope, and install it to your workspace
+2. Note the Bot User OAuth Token (starts with `xoxb-`)
+3. **Invite the bot user to every channel you deliver to** (it can't post to channels it hasn't been invited to)
+
+## Usage
 
 ### CLI
 
 ```bash
-# デバッグ実行（Slackに投稿せず、投稿内容をログに出力）
+# Debug run (logs the message content instead of posting to Slack)
 NOTION_API_TOKEN=xxx npx nippotion --debug
 
-# 本番実行
+# Production run
 NOTION_API_TOKEN=xxx SLACK_BOT_API_TOKEN=xoxb-xxx npx nippotion
 ```
 
-| オプション | 説明 |
+| Option | Description |
 |---|---|
-| `-c, --config <path>` | 設定ファイルのパス（デフォルト: カレントディレクトリの `nippotion.json`） |
-| `-d, --debug` | Slackに投稿せず、投稿内容をログに出力する |
-| `-h, --help` | ヘルプを表示する |
+| `-c, --config <path>` | Path to the config file (default: `nippotion.json` in the current directory) |
+| `-d, --debug` | Log the message content instead of posting to Slack |
+| `-h, --help` | Show help |
 
-| 環境変数 | 説明 |
+| Environment variable | Description |
 |---|---|
-| `NOTION_API_TOKEN` | Notion IntegrationのAPIトークン（必須） |
-| `SLACK_BOT_API_TOKEN` | SlackのBot User OAuth Token（`--debug`時は不要） |
-| `NIPPOTION_CONFIG` | 設定ファイルのパス（`--config`と同じ。オプションが優先） |
-| `TZ` | 営業日判定に使うタイムゾーン。`Asia/Tokyo` を推奨 |
+| `NOTION_API_TOKEN` | Notion integration API token (required) |
+| `SLACK_BOT_API_TOKEN` | Slack Bot User OAuth Token (not needed with `--debug`) |
+| `NIPPOTION_CONFIG` | Path to the config file (same as `--config`; the flag takes precedence) |
+| `NIPPOTION_DEBUG` | Set to `1` for debug mode (same as `--debug`) |
+| `NIPPOTION_LANG` | Language for CLI help and error messages (`ja` / `en`, default: `en`). The config's `language` takes precedence if set |
+| `TZ` | Fallback timezone for date evaluation. Prefer setting `timezone` in the config file |
 
-### GitHub Actionsでの定期実行
+### Scheduled runs with GitHub Actions
 
-リポジトリに `nippotion.json` と以下のworkflow（[examples/notify.yml](./examples/notify.yml)）を置き、Secretsに `NOTION_API_TOKEN` / `SLACK_BOT_API_TOKEN` を登録します：
+Place `nippotion.json` and the following workflow ([examples/notify.yml](./examples/notify.yml)) in your repository, and register `NOTION_API_TOKEN` / `SLACK_BOT_API_TOKEN` as secrets:
 
 ```yaml
 name: nippotion
@@ -74,7 +81,7 @@ on:
   workflow_dispatch:
     inputs:
       debug_mode:
-        description: 'デバッグモード (Slackに投稿しない)'
+        description: 'Debug mode (does not post to Slack)'
         type: boolean
         default: false
 jobs:
@@ -87,46 +94,90 @@ jobs:
           node-version: 24
       - run: npx nippotion@1 ${{ github.event.inputs.debug_mode == 'true' && '--debug' || '' }}
         env:
-          TZ: 'Asia/Tokyo'
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           SLACK_BOT_API_TOKEN: ${{ secrets.SLACK_BOT_API_TOKEN }}
 ```
 
-動作確認は、Actionsタブから `debug_mode: true` で手動実行してください。
+To verify it works, trigger it manually from the Actions tab with `debug_mode: true`.
 
-## 設定リファレンス（nippotion.json）
+## Config reference (nippotion.json)
 
 ```json
 {
-  "dataSourceId": "NotionデータベースのデータソースID",
+  "dataSourceId": "The Notion database's data source ID",
+  "timezone": "America/New_York",
+  "language": "en",
+  "holidays": "jp",
   "properties": {
-    "title": "タイトルプロパティの名前",
-    "labels": "マルチセレクトプロパティの名前",
-    "author": "作成者プロパティの名前",
-    "date": "日付プロパティの名前"
+    "title": "Name of the title property",
+    "labels": "Name of the multi-select property",
+    "author": "Name of the created-by property",
+    "date": "Name of the date property"
   },
-  "footerText": "メッセージ末尾に添える文言（Slack mrkdwn、省略可）",
+  "footerText": "Text appended to the end of the message (Slack mrkdwn, optional)",
+  "messages": {
+    "header": "Here are the entries from {database} for the previous business day",
+    "pickup": "*:star: Today's pick goes to {writer}! :star:*",
+    "unknownWriter": "(unknown)",
+    "notificationText": "Daily reports have arrived"
+  },
   "recipients": [
     {
-      "labels": ["このラベルのいずれかが付いた日報を"],
-      "channelId": "このチャンネルIDに配信します"
+      "labels": ["Entries with any of these labels"],
+      "channelId": "are delivered to this channel ID"
     }
   ]
 }
 ```
 
-- `channelId` はSlackチャンネルのリンクURLの末尾、またはチャンネル詳細から確認できます
-- 同じラベルを複数のrecipientsに書けば、複数チャンネルへ配信されます
+- `channelId` can be found at the end of the Slack channel's link URL, or from the channel details
+- Listing the same label in multiple recipients delivers it to multiple channels
+- `timezone` is the IANA timezone name used to evaluate business days and "the previous business day" (defaults to the runtime's local timezone if omitted)
+- `language` sets the default Slack message wording and the log/error message language (`ja` / `en`, **defaults to `en`**). Set `"language": "ja"` to use it in Japanese
+- Setting `holidays` to a country code also excludes that country's holidays from business days (**weekends only if omitted**; currently only `jp` — Japanese holidays — is supported). Non-business days are not delivered, and are also skipped when computing "the previous business day" (entries from a holiday arrive together on the next business day)
+- `messages` lets you override individual pieces of Slack wording. All fields are optional (defaults follow `language`). `{database}` is replaced with a link to the database, and `{writer}` with the entry's author name
 
-## 開発
+### Example: Japanese setup
+
+For a Japanese-language Notion database and Slack workspace, set `language` to `"ja"` and use Japanese property names:
+
+```json
+{
+  "dataSourceId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timezone": "Asia/Tokyo",
+  "language": "ja",
+  "holidays": "jp",
+  "properties": {
+    "title": "今日のひとこと",
+    "labels": "所属",
+    "author": "書いた人",
+    "date": "日付"
+  },
+  "footerText": "powered by <https://github.com/kenchan/nippotion|nippotion>",
+  "recipients": [
+    {
+      "labels": ["チームA"],
+      "channelId": "C0123456789"
+    },
+    {
+      "labels": ["チームB", "チームC"],
+      "channelId": "C9876543210"
+    }
+  ]
+}
+```
+
+With `"language": "ja"`, the default `messages` wording is Japanese too, so it can be omitted here.
+
+## Development
 
 ```bash
 npm ci
-npm start -- --debug   # tsxでソースから実行
-npm run typecheck      # 型チェック
+npm start -- --debug   # run from source with tsx
+npm run typecheck      # type check
 npm run lint           # ESLint
-npm test               # テスト
-npm run build          # tsupでdist/をビルド
+npm test               # tests
+npm run build          # build dist/ with tsup
 ```
 
 ## License
