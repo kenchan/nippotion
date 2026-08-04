@@ -25,7 +25,7 @@ jobs:
           node-version: 24
 
       # The timezone for date evaluation is set via nippotion.json's timezone field
-      - run: npx nippotion@1 ${{ github.event.inputs.debug_mode == 'true' && '--debug' || '' }}
+      - run: npx nippotion@0 ${{ github.event.inputs.debug_mode == 'true' && '--debug' || '' }}
         env:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           SLACK_BOT_API_TOKEN: ${{ secrets.SLACK_BOT_API_TOKEN }}
