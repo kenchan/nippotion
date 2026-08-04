@@ -132,6 +132,7 @@ To verify it works, trigger it manually from the Actions tab with `debug_mode: t
 
 - `channelId` can be found at the end of the Slack channel's link URL, or from the channel details
 - Listing the same label in multiple recipients delivers it to multiple channels
+- As long as at least one entry exists for the day, every recipient channel receives a message — a channel whose labels match no entries still gets the header, pickup, and footer (delivery is skipped entirely only when there are no entries at all)
 - `timezone` is the IANA timezone name used to evaluate business days and "the previous business day" (defaults to the runtime's local timezone if omitted)
 - `language` sets the default Slack message wording and the log/error message language (`ja` / `en`; **defaults to `NIPPOTION_LANG`, or `en` if neither is set**). Set `"language": "ja"` to use it in Japanese
 - Setting `holidays` to a country code also excludes that country's holidays from business days (**weekends only if omitted**; currently only `jp` — Japanese holidays — is supported). Non-business days are not delivered, and are also skipped when computing "the previous business day" (entries from a holiday arrive together on the next business day)
