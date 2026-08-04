@@ -2,7 +2,7 @@
 
 A CLI tool that delivers daily reports (diary entries) written in a Notion database to Slack channels based on their labels, every morning. Runs with **`npx nippotion` and a single config file**.
 
-- Delivers **the previous business day's** entries on weekday mornings (weekends are skipped; set `"holidays": "jp"` to also skip Japanese holidays via [@holiday-jp/holiday_jp](https://github.com/holiday-jp/holiday_jp). Monday delivers Friday's entries)
+- Delivers **the previous business day's** entries on weekday mornings (weekends are skipped; set `"holidays": "jp"` to also skip Japanese holidays via [@holiday-jp/holiday_jp](https://github.com/holiday-jp/holiday_jp). Monday delivers entries dated Friday through Sunday)
 - Routes entries to multiple Slack channels based on their labels (multi-select)
 - Randomly picks one entry each time to feature as the "pickup" entry (chosen from all of the day's entries and shared by every channel, even ones whose labels don't match it)
 - Timezone, holiday skipping, language (Japanese/English), and Slack message wording are all configurable (works for non-Japan offices and English-speaking workspaces too)
