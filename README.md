@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: npx nippotion@1 ${{ github.event.inputs.debug_mode == 'true' && '--debug' || '' }}
+      - run: npx nippotion@0 ${{ github.event.inputs.debug_mode == 'true' && '--debug' || '' }}
         env:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           SLACK_BOT_API_TOKEN: ${{ secrets.SLACK_BOT_API_TOKEN }}
