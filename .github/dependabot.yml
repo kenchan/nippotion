@@ -12,6 +12,12 @@ updates:
       semver-major-days: 30
       semver-minor-days: 7
       semver-patch-days: 3
+    ignore:
+      # TypeScript 7 has no programmatic API yet and is unsupported by typescript-eslint.
+      # Keep receiving TypeScript 6 minor and patch updates until the toolchain catches up.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
     groups:
       production-minor-and-patch:
         applies-to: "version-updates"
