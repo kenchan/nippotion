@@ -1,6 +1,6 @@
 {
   "name": "nippotion",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Deliver daily reports written in Notion to Slack channels based on their labels",
   "type": "module",
   "scripts": {
