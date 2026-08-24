@@ -71,7 +71,24 @@ export interface Entry {
   writerName: string | null;
   labels: string[];
   url: string;
+  editGapMs: number;
 }
+
+// Notion is not documented to guarantee sub-second precision on these fields. When it
+// reports them at minute granularity the gap lands on multiples of 60000, and a threshold
+// below a minute degrades to "created and last edited within the same minute" —
+// the same intent, so no separate handling is needed
+export const editGapMs = (page: PageObjectResponse): number => {
+  const gap = Date.parse(page.last_edited_time) - Date.parse(page.created_time);
+  // Clamped rather than returned as-is so that a threshold of 0 really admits every entry:
+  // an unexpected negative gap would otherwise stay below the threshold and be dropped
+  return Math.max(0, gap);
+};
+
+// Exported so that the caller can log exactly the entries selectPickup drops,
+// without restating the comparison on both sides of the boundary
+export const isPickupCandidate = (entry: Entry, minEditGapMs: number): boolean =>
+  entry.editGapMs >= minEditGapMs;
 
 // Property names are centralized in nippotion.json, so they are passed in as arguments.
 // Narrowing by `type` returns a fallback instead of crashing on unexpected property types
@@ -107,5 +124,6 @@ export const toEntry = (page: PageObjectResponse, properties: Config['properties
     writerName: getWriterName(page, properties.author),
     labels: getLabels(page, properties.labels),
     url: page.url,
+    editGapMs: editGapMs(page),
   };
 };

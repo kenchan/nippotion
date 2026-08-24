@@ -5,6 +5,8 @@ export interface TranslationResource {
   config: {
     notObject: string;
     mustBeString: string;
+    mustBeNumber: string;
+    mustBeNonNegativeInteger: string;
     mustBeStringArray: string;
     mustBeObject: string;
     mustBeArray: string;
@@ -19,6 +21,9 @@ export interface TranslationResource {
   };
   notion: {
     propertyNotFound: string;
+  };
+  pickup: {
+    skipped: string;
   };
   // Default wording for Slack posts. {database} and {writer} are placeholders replaced
   // by fillTemplate in slack.ts (same syntax as the messages config), not by i18next
@@ -50,6 +55,8 @@ Notionの日報データベースから前営業日分を取得し、
   config: {
     notObject: '設定はオブジェクトである必要があります',
     mustBeString: '設定の "{{keyPath}}" は文字列である必要があります（実際の型: {{type}}）',
+    mustBeNumber: '設定の "{{keyPath}}" は有限の数値である必要があります（実際の型: {{type}}）',
+    mustBeNonNegativeInteger: '設定の "{{keyPath}}" は0以上の整数である必要があります',
     mustBeStringArray: '設定の "{{keyPath}}" は文字列の配列である必要があります',
     mustBeObject: '設定の "{{keyPath}}" はオブジェクトである必要があります',
     mustBeArray: '設定の "{{keyPath}}" は配列である必要があります',
@@ -64,6 +71,9 @@ Notionの日報データベースから前営業日分を取得し、
   },
   notion: {
     propertyNotFound: 'プロパティ "{{name}}" が見つかりません',
+  },
+  pickup: {
+    skipped: 'pickup候補から除外（作成から配信まで一度も編集されていないエントリ）: {{count}}件',
   },
   slack: {
     header: '前営業日の{database}はこちら',

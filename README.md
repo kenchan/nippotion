@@ -4,7 +4,7 @@ A CLI tool that delivers daily reports (diary entries) written in a Notion datab
 
 - Delivers **the previous business day's** entries on weekday mornings (weekends are skipped; set `"holidays": "jp"` to also skip Japanese holidays via [@holiday-jp/holiday_jp](https://github.com/holiday-jp/holiday_jp). Monday delivers entries dated Friday through Sunday)
 - Routes entries to multiple Slack channels based on their labels (multi-select)
-- Randomly picks one entry each time to feature as the "pickup" entry (chosen from all of the day's entries and shared by every channel, even ones whose labels don't match it)
+- Randomly picks one entry each time to feature as the "pickup" entry (shared by every channel, even ones whose labels don't match it). Entries that were never edited between creation and delivery — unfilled template copies and auto-created shells — are left out of the draw (`pickup.minEditGapMs`)
 - Timezone, holiday skipping, language (Japanese/English), and Slack message wording are all configurable (works for non-Japan offices and English-speaking workspaces too)
 
 ```bash
@@ -108,6 +108,9 @@ To verify it works, trigger it manually from the Actions tab with `debug_mode: t
   "timezone": "America/New_York",
   "language": "en",
   "holidays": "jp",
+  "pickup": {
+    "minEditGapMs": 10000
+  },
   "properties": {
     "title": "Name of the title property",
     "labels": "Name of the multi-select property",
@@ -137,6 +140,10 @@ To verify it works, trigger it manually from the Actions tab with `debug_mode: t
 - `language` sets the default Slack message wording and the log/error message language (`ja` / `en`; **defaults to `NIPPOTION_LANG`, or `en` if neither is set**). Set `"language": "ja"` to use it in Japanese
 - Setting `holidays` to a country code also excludes that country's holidays from business days (**weekends only if omitted**; currently only `jp` — Japanese holidays — is supported). Non-business days are not delivered, and are also skipped when computing "the previous business day" (entries from a holiday arrive together on the next business day)
 - `messages` lets you override individual pieces of Slack wording. All fields are optional (defaults follow `language`). `{database}` is replaced with a link to the database, and `{writer}` with the entry's author name
+- `pickup.minEditGapMs` drops an entry from the **pickup candidates** when its `last_edited_time` is within this many milliseconds of its `created_time` (default: `10000`, i.e. 10 seconds). Such entries are still delivered to their channels as usual — only the "today's pick" draw skips them. Set `0` to keep every entry as a candidate
+  - What this excludes is precisely **entries created in a single write and never touched between creation and delivery**: template copies left unfilled, shells created by an automation, and reports composed elsewhere and submitted in one go. That overlaps heavily with AI-generated entries but is **not the same thing** — a report written by hand in another editor and pasted in one write is excluded too, while an AI-written entry whose author edited it afterwards is kept
+  - Every run logs the entries it skipped (URL, title, and the measured gap), so you can check what the setting is actually doing before tightening or loosening it
+  - Notion is not documented to guarantee sub-second precision on these timestamps. Where it reports them at minute granularity the gap lands on multiples of 60000, and any threshold below a minute behaves as "created and last edited within the same minute" — the same intent, so no configuration change is needed
 
 ### Example: Japanese setup
 

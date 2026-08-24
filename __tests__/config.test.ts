@@ -130,6 +130,53 @@ describe('validateConfig', () => {
     expect(result.holidays).toBeUndefined();
   });
 
+  it('includes pickup when specified', () => {
+    const result = validateConfig({ ...validConfigData, pickup: { minEditGapMs: 30_000 } });
+
+    expect(result.pickup).toEqual({ minEditGapMs: 30_000 });
+  });
+
+  it('omits pickup when not specified', () => {
+    const result = validateConfig(validConfigData);
+
+    expect(result.pickup).toBeUndefined();
+  });
+
+  it('accepts 0 as minEditGapMs, which admits every entry', () => {
+    const result = validateConfig({ ...validConfigData, pickup: { minEditGapMs: 0 } });
+
+    expect(result.pickup).toEqual({ minEditGapMs: 0 });
+  });
+
+  it('throws an error naming the key when pickup is not an object', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: 10_000 })).toThrow(/pickup/);
+  });
+
+  it('throws an error naming the key path when minEditGapMs is missing', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: {} }))
+      .toThrow(/pickup\.minEditGapMs/);
+  });
+
+  it('throws an error naming the key path when minEditGapMs has a wrong type', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: '10000' } }))
+      .toThrow(/pickup\.minEditGapMs/);
+  });
+
+  it('throws an error naming the key path when minEditGapMs is NaN', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: NaN } }))
+      .toThrow(/pickup\.minEditGapMs/);
+  });
+
+  it('throws an error naming the key path when minEditGapMs is negative', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: -1 } }))
+      .toThrow(/pickup\.minEditGapMs/);
+  });
+
+  it('throws an error naming the key path when minEditGapMs is not an integer', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: 10.5 } }))
+      .toThrow(/pickup\.minEditGapMs/);
+  });
+
   it('throws an error naming the key for an unsupported holidays country', () => {
     expect(() => validateConfig({ ...validConfigData, holidays: 'us' })).toThrow(/holidays/);
   });

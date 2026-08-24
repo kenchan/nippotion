@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import dayjs from 'dayjs';
-import { getDateFilter, toEntry } from '../src/notion';
+import { getDateFilter, toEntry, editGapMs, isPickupCandidate } from '../src/notion';
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
 // Actual property names are chosen by users in nippotion.json,
@@ -60,6 +60,62 @@ const createPage = (name: string | null, title: string | string[], url: string, 
   };
 };
 
+// editGapMs only reads the two page-level timestamps, so the rest of the page is fixed
+const createPageWithTimes = (created: string, lastEdited: string): PageObjectResponse => ({
+  ...createPage('Taro Tanaka', 'Test Diary', 'https://notion.so/test'),
+  created_time: created,
+  last_edited_time: lastEdited,
+});
+
+describe('editGapMs', () => {
+  it('returns the millisecond difference between creation and last edit', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:20:30.500Z');
+
+    expect(editGapMs(page)).toBe(20 * 60 * 1000 + 30_500);
+  });
+
+  it('returns 0 when the page was never edited after creation', () => {
+    // Minute-granularity stamps land here too: a page created at 10:00:12 and edited at
+    // 10:00:47 arrives with both stamps at 10:00:00, so a sub-minute threshold degrades
+    // to a same-minute check
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:00:00.000Z');
+
+    expect(editGapMs(page)).toBe(0);
+  });
+
+  it('returns 0 when the last edit precedes creation', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T09:59:59.000Z');
+
+    expect(editGapMs(page)).toBe(0);
+  });
+
+  it('returns 60000 for minute-granularity timestamps one minute apart', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:01:00.000Z');
+
+    expect(editGapMs(page)).toBe(60_000);
+  });
+});
+
+describe('isPickupCandidate', () => {
+  const entry = (gap: number) => ({ title: 't', writerName: null, labels: [], url: 'u', editGapMs: gap });
+
+  it('accepts an entry whose gap exceeds the threshold', () => {
+    expect(isPickupCandidate(entry(10_001), 10_000)).toBe(true);
+  });
+
+  it('accepts an entry sitting exactly on the threshold', () => {
+    expect(isPickupCandidate(entry(10_000), 10_000)).toBe(true);
+  });
+
+  it('rejects an entry below the threshold', () => {
+    expect(isPickupCandidate(entry(9_999), 10_000)).toBe(false);
+  });
+
+  it('accepts every entry when the threshold is 0', () => {
+    expect(isPickupCandidate(entry(0), 0)).toBe(true);
+  });
+});
+
 describe('getDateFilter', () => {
   it('filters by a single date when the gap is one day', () => {
     const today = dayjs('2026-01-23');
@@ -105,6 +161,7 @@ describe('toEntry', () => {
       writerName: 'Taro Tanaka',
       labels: ['Team A'],
       url: 'https://notion.so/test',
+      editGapMs: 0,
     });
   });
 
@@ -130,6 +187,15 @@ describe('toEntry', () => {
     const entry = toEntry(page, properties);
 
     expect(entry?.writerName).toBeNull();
+  });
+
+  it('carries the edit gap over from the page timestamps', () => {
+    const page = createPage('Taro Tanaka', 'Test Diary', 'https://notion.so/test');
+    page.last_edited_time = '2026-01-23T00:05:00.000Z';
+
+    const entry = toEntry(page, properties);
+
+    expect(entry?.editGapMs).toBe(5 * 60 * 1000);
   });
 
   it('returns an empty labels array when no labels are set', () => {

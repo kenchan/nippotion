@@ -36,8 +36,16 @@ export interface Config {
   // When set, holidays of this country are treated as non-business days: delivery is
   // skipped on them and the previous-workday calculation skips them. Omitted = weekends only
   holidays?: HolidayCountry;
+  // When omitted, DEFAULT_MIN_EDIT_GAP_MS applies. Entries whose last edit falls within
+  // minEditGapMs of their creation are dropped from pickup candidates; 0 admits every entry
+  pickup?: { minEditGapMs: number };
   messages: Messages;
 }
+
+// An entry created and delivered without a single edit in between was never written by
+// hand: it is a template copy, an auto-created shell, or a post written elsewhere and
+// submitted in one write. 10s clears the observed gaps of such entries by a wide margin
+export const DEFAULT_MIN_EDIT_GAP_MS = 10_000;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -45,6 +53,13 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 const requireString = (value: unknown, keyPath: string): string => {
   if (typeof value !== 'string') {
     throw new Error(t('config.mustBeString', { keyPath, type: typeof value }));
+  }
+  return value;
+};
+
+const requireNumber = (value: unknown, keyPath: string): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(t('config.mustBeNumber', { keyPath, type: typeof value }));
   }
   return value;
 };
@@ -91,6 +106,22 @@ const validateHolidays = (value: unknown, keyPath: string): HolidayCountry => {
     throw new Error(t('config.invalidHolidays', { keyPath, supported: HOLIDAY_COUNTRIES.join(', ') }));
   }
   return country as HolidayCountry;
+};
+
+// A negative threshold behaves exactly like 0 and a fractional millisecond has no meaning,
+// so both are rejected as typos rather than silently accepted
+const validatePickup = (value: unknown, keyPath: string): NonNullable<Config['pickup']> => {
+  if (!isPlainObject(value)) {
+    throw new Error(t('config.mustBeObject', { keyPath }));
+  }
+
+  const minEditGapMsPath = `${keyPath}.minEditGapMs`;
+  const minEditGapMs = requireNumber(value.minEditGapMs, minEditGapMsPath);
+  if (!Number.isInteger(minEditGapMs) || minEditGapMs < 0) {
+    throw new Error(t('config.mustBeNonNegativeInteger', { keyPath: minEditGapMsPath }));
+  }
+
+  return { minEditGapMs };
 };
 
 const validateLanguage = (value: unknown, keyPath: string): Language => {
@@ -166,6 +197,10 @@ export const validateConfig = (data: unknown): Config => {
 
   if (data.timezone !== undefined) {
     config.timezone = validateTimezone(data.timezone, 'timezone');
+  }
+
+  if (data.pickup !== undefined) {
+    config.pickup = validatePickup(data.pickup, 'pickup');
   }
 
   return config;

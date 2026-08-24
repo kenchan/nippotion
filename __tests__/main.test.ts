@@ -24,14 +24,57 @@ vi.mock('../src/notion.js', async (importOriginal) => {
   return { ...actual, getDatabaseInfo, getAllPages, toEntry };
 });
 
-import { main } from '../src/main';
+import { main, selectPickup } from '../src/main';
 
 const testEntry: Entry = {
   title: 'Test Diary',
   writerName: 'Taro Tanaka',
   labels: ['A', 'B'],
   url: 'https://notion.so/test',
+  editGapMs: 60_000,
 };
+
+const entryWithGap = (gap: number, overrides: Partial<Entry> = {}): Entry =>
+  ({ ...testEntry, editGapMs: gap, ...overrides });
+
+describe('selectPickup', () => {
+  // Always draws the first candidate, so the filtering is what the assertions observe
+  const firstRng = () => 0;
+
+  it('returns null when there are no entries at all', () => {
+    expect(selectPickup([], 10_000, firstRng)).toBeNull();
+  });
+
+  it('returns null when every entry is below the threshold', () => {
+    const entries = [entryWithGap(0), entryWithGap(9_999)];
+
+    expect(selectPickup(entries, 10_000, firstRng)).toBeNull();
+  });
+
+  it('picks from every entry when they all meet the threshold', () => {
+    const first = entryWithGap(10_000, { title: 'First' });
+    const second = entryWithGap(60_000, { title: 'Second' });
+
+    expect(selectPickup([first, second], 10_000, () => 0.99)?.title).toBe('Second');
+  });
+
+  it('drops entries below the threshold and picks from the rest', () => {
+    const unedited = entryWithGap(0, { title: 'Never edited' });
+    const written = entryWithGap(60_000, { title: 'Written' });
+
+    expect(selectPickup([unedited, written], 10_000, firstRng)?.title).toBe('Written');
+  });
+
+  it('treats an entry sitting exactly on the threshold as a candidate', () => {
+    expect(selectPickup([entryWithGap(10_000)], 10_000, firstRng)).not.toBeNull();
+  });
+
+  it('admits every entry when the threshold is 0', () => {
+    const entries = [entryWithGap(0, { title: 'Never edited' })];
+
+    expect(selectPickup(entries, 0, firstRng)?.title).toBe('Never edited');
+  });
+});
 
 describe('main', () => {
   let configDir: string;
@@ -116,6 +159,18 @@ describe('main', () => {
     const channels = postMessage.mock.calls.map(([args]) => args.channel);
     expect(channels).toEqual(['C-A', 'C-B']);
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it('logs the entries dropped from pickup candidates', async () => {
+    getAllPages.mockResolvedValue([{}]);
+    toEntry.mockReturnValue({ ...testEntry, editGapMs: 0 });
+
+    await main();
+
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Skipped from pickup candidates'),
+      expect.stringContaining('https://notion.so/test'),
+    );
   });
 
   it('keeps delivering to the remaining recipients and sets exitCode to 1 when posting fails', async () => {

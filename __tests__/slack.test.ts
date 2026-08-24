@@ -25,6 +25,7 @@ const createEntry = (overrides: Partial<Entry> = {}): Entry => ({
   writerName: 'Taro Tanaka',
   labels: [],
   url: 'https://notion.so/test',
+  editGapMs: 60_000,
   ...overrides,
 });
 
