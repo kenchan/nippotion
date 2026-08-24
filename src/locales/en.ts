@@ -36,9 +36,10 @@ Environment variables:
   },
   notion: {
     propertyNotFound: 'Property "{{name}}" was not found in the data source',
+    templateListFailed: 'Could not list the data source templates, so no entry is skipped from the pickup candidates: {{message}}',
   },
   pickup: {
-    skipped: 'Skipped from pickup candidates (never edited between creation and delivery): {{count}}',
+    skipped: 'Skipped from pickup candidates (still titled after a template, never edited between creation and delivery): {{count}}',
   },
   slack: {
     header: 'Here are the entries from {database} for the previous business day',

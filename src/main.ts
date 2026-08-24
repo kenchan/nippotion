@@ -4,10 +4,10 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import i18next, { t } from './i18n.js';
-import { loadConfig, resolveConfigPath, DEFAULT_MIN_EDIT_GAP_MS } from './config.js';
+import { loadConfig, resolveConfigPath, DEFAULT_TEMPLATE_COPY_MIN_EDIT_GAP_MS } from './config.js';
 import type { Config } from './config.js';
 import { isWeekendOrHoliday, getPreviousWorkday } from './workday.js';
-import { getDatabaseInfo, getAllPages, getDateFilter, toEntry, isPickupCandidate } from './notion.js';
+import { getDatabaseInfo, getAllPages, getDateFilter, toEntry, isPickupCandidate, fetchTemplateNames } from './notion.js';
 import type { Entry } from './notion.js';
 import { createHeaderBlock, createFooterBlock, notifyNippo } from './slack.js';
 import type { NotifyContext } from './slack.js';
@@ -30,8 +30,8 @@ const checkRequiredEnvVars = (debug: boolean): void => {
 
 // rng is a parameter rather than a direct Math.random call so that the choice
 // can be pinned in tests
-export const selectPickup = (entries: Entry[], minEditGapMs: number, rng: () => number = Math.random): Entry | null => {
-  const candidates = entries.filter(entry => isPickupCandidate(entry, minEditGapMs));
+export const selectPickup = (entries: Entry[], templateNames: Set<string>, minEditGapMs: number, rng: () => number = Math.random): Entry | null => {
+  const candidates = entries.filter(entry => isPickupCandidate(entry, templateNames, minEditGapMs));
   // An empty candidates list indexes to undefined, which is exactly the "no pickup" case.
   // noUncheckedIndexedAccess types the access as possibly undefined either way
   return candidates[Math.floor(rng() * candidates.length)] ?? null;
@@ -87,8 +87,10 @@ export const main = async () => {
   console.log("entries:", JSON.stringify({ pages: pages.length, entries: entries.length }));
   if (entries.length === 0) return;
 
-  const minEditGapMs = config.pickup?.minEditGapMs ?? DEFAULT_MIN_EDIT_GAP_MS;
-  const skipped = entries.filter(entry => !isPickupCandidate(entry, minEditGapMs));
+  const minEditGapMs = config.pickup?.templateCopyMinEditGapMs ?? DEFAULT_TEMPLATE_COPY_MIN_EDIT_GAP_MS;
+  // Fetched only once there is something to pick from, so a day with no entries costs nothing
+  const templateNames = await fetchTemplateNames(client, config.dataSourceId);
+  const skipped = entries.filter(entry => !isPickupCandidate(entry, templateNames, minEditGapMs));
   // Logged outside debug mode too: a writer who is never picked up has no other way to
   // find out why, since Notion's UI does not expose the gap this decision is made on
   if (skipped.length > 0) {
@@ -99,7 +101,7 @@ export const main = async () => {
     ));
   }
 
-  const pickup = selectPickup(entries, minEditGapMs);
+  const pickup = selectPickup(entries, templateNames, minEditGapMs);
 
   const ctx: NotifyContext = {
     slack,

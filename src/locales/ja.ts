@@ -21,6 +21,7 @@ export interface TranslationResource {
   };
   notion: {
     propertyNotFound: string;
+    templateListFailed: string;
   };
   pickup: {
     skipped: string;
@@ -71,9 +72,10 @@ Notionの日報データベースから前営業日分を取得し、
   },
   notion: {
     propertyNotFound: 'プロパティ "{{name}}" が見つかりません',
+    templateListFailed: 'テンプレート一覧を取得できなかったため、pickup候補の除外を行いません: {{message}}',
   },
   pickup: {
-    skipped: 'pickup候補から除外（作成から配信まで一度も編集されていないエントリ）: {{count}}件',
+    skipped: 'pickup候補から除外（タイトルがテンプレート名のまま、作成から配信まで未編集）: {{count}}件',
   },
   slack: {
     header: '前営業日の{database}はこちら',

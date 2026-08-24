@@ -131,9 +131,9 @@ describe('validateConfig', () => {
   });
 
   it('includes pickup when specified', () => {
-    const result = validateConfig({ ...validConfigData, pickup: { minEditGapMs: 30_000 } });
+    const result = validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: 30_000 } });
 
-    expect(result.pickup).toEqual({ minEditGapMs: 30_000 });
+    expect(result.pickup).toEqual({ templateCopyMinEditGapMs: 30_000 });
   });
 
   it('omits pickup when not specified', () => {
@@ -142,39 +142,39 @@ describe('validateConfig', () => {
     expect(result.pickup).toBeUndefined();
   });
 
-  it('accepts 0 as minEditGapMs, which admits every entry', () => {
-    const result = validateConfig({ ...validConfigData, pickup: { minEditGapMs: 0 } });
+  it('accepts 0 as templateCopyMinEditGapMs, which admits every entry', () => {
+    const result = validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: 0 } });
 
-    expect(result.pickup).toEqual({ minEditGapMs: 0 });
+    expect(result.pickup).toEqual({ templateCopyMinEditGapMs: 0 });
   });
 
   it('throws an error naming the key when pickup is not an object', () => {
     expect(() => validateConfig({ ...validConfigData, pickup: 10_000 })).toThrow(/pickup/);
   });
 
-  it('throws an error naming the key path when minEditGapMs is missing', () => {
+  it('throws an error naming the key path when templateCopyMinEditGapMs is missing', () => {
     expect(() => validateConfig({ ...validConfigData, pickup: {} }))
-      .toThrow(/pickup\.minEditGapMs/);
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
   });
 
-  it('throws an error naming the key path when minEditGapMs has a wrong type', () => {
-    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: '10000' } }))
-      .toThrow(/pickup\.minEditGapMs/);
+  it('throws an error naming the key path when templateCopyMinEditGapMs has a wrong type', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: '10000' } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
   });
 
-  it('throws an error naming the key path when minEditGapMs is NaN', () => {
-    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: NaN } }))
-      .toThrow(/pickup\.minEditGapMs/);
+  it('throws an error naming the key path when templateCopyMinEditGapMs is NaN', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: NaN } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
   });
 
-  it('throws an error naming the key path when minEditGapMs is negative', () => {
-    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: -1 } }))
-      .toThrow(/pickup\.minEditGapMs/);
+  it('throws an error naming the key path when templateCopyMinEditGapMs is negative', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: -1 } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
   });
 
-  it('throws an error naming the key path when minEditGapMs is not an integer', () => {
-    expect(() => validateConfig({ ...validConfigData, pickup: { minEditGapMs: 10.5 } }))
-      .toThrow(/pickup\.minEditGapMs/);
+  it('throws an error naming the key path when templateCopyMinEditGapMs is not an integer', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: 10.5 } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
   });
 
   it('throws an error naming the key for an unsupported holidays country', () => {

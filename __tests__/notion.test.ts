@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import dayjs from 'dayjs';
-import { getDateFilter, toEntry, editGapMs, isPickupCandidate } from '../src/notion';
+import { getDateFilter, toEntry, editGapMs, isPickupCandidate, fetchTemplateNames } from '../src/notion';
+import type { Client } from '@notionhq/client';
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
 // Actual property names are chosen by users in nippotion.json,
@@ -103,22 +104,92 @@ describe('editGapMs', () => {
 });
 
 describe('isPickupCandidate', () => {
-  const entry = (gap: number) => ({ title: 't', writerName: null, labels: [], url: 'u', editGapMs: gap });
+  const templateNames = new Set(['yan diary']);
+  const entry = (title: string, gap: number) => ({ title, writerName: null, labels: [], url: 'u', editGapMs: gap });
 
-  it('accepts an entry whose gap exceeds the threshold', () => {
-    expect(isPickupCandidate(entry(10_001), 10_000)).toBe(true);
+  it('rejects an entry whose title is a template name and that was never edited', () => {
+    expect(isPickupCandidate(entry('yan diary', 0), templateNames, 10_000)).toBe(false);
+  });
+
+  it('accepts an entry whose title is a template name but that was edited', () => {
+    expect(isPickupCandidate(entry('yan diary', 60_000), templateNames, 10_000)).toBe(true);
+  });
+
+  it('accepts an entry that was never edited but whose title is not a template name', () => {
+    expect(isPickupCandidate(entry('Shipped the mail API fix', 122), templateNames, 10_000)).toBe(true);
+  });
+
+  it('accepts an entry that is neither a template name nor unedited', () => {
+    expect(isPickupCandidate(entry('Shipped the mail API fix', 60_000), templateNames, 10_000)).toBe(true);
   });
 
   it('accepts an entry sitting exactly on the threshold', () => {
-    expect(isPickupCandidate(entry(10_000), 10_000)).toBe(true);
+    expect(isPickupCandidate(entry('yan diary', 10_000), templateNames, 10_000)).toBe(true);
   });
 
-  it('rejects an entry below the threshold', () => {
-    expect(isPickupCandidate(entry(9_999), 10_000)).toBe(false);
+  it('accepts every entry when the template name set is empty', () => {
+    expect(isPickupCandidate(entry('yan diary', 0), new Set(), 10_000)).toBe(true);
   });
 
   it('accepts every entry when the threshold is 0', () => {
-    expect(isPickupCandidate(entry(0), 0)).toBe(true);
+    expect(isPickupCandidate(entry('yan diary', 0), templateNames, 0)).toBe(true);
+  });
+});
+
+describe('fetchTemplateNames', () => {
+  // withRetry logs each failed attempt, so the failure case would otherwise print noise
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const clientReturning = (...pages: unknown[]) => {
+    const listTemplates = vi.fn();
+    for (const page of pages) listTemplates.mockResolvedValueOnce(page);
+    return { client: { dataSources: { listTemplates } } as unknown as Client, listTemplates };
+  };
+
+  it('collects the names of every template across pages', async () => {
+    const { client, listTemplates } = clientReturning(
+      { templates: [{ name: 'yan diary' }, { name: 'taro' }], next_cursor: 'cursor-2' },
+      { templates: [{ name: 'misohey diary' }], next_cursor: null },
+    );
+
+    const names = await fetchTemplateNames(client, 'ds-id');
+
+    expect(names).toEqual(new Set(['yan diary', 'taro', 'misohey diary']));
+    expect(listTemplates).toHaveBeenCalledTimes(2);
+    expect(listTemplates.mock.calls[1]?.[0]).toMatchObject({ start_cursor: 'cursor-2' });
+  });
+
+  it('stops after a single page when there is no next cursor', async () => {
+    const { client, listTemplates } = clientReturning({ templates: [{ name: 'taro' }], next_cursor: null });
+
+    await fetchTemplateNames(client, 'ds-id');
+
+    expect(listTemplates).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an empty set and reports why when listing fails', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const listTemplates = vi.fn().mockRejectedValue(new Error('templates are unavailable'));
+    const client = { dataSources: { listTemplates } } as unknown as Client;
+
+    const names = await fetchTemplateNames(client, 'ds-id');
+
+    expect(names).toEqual(new Set());
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('templates are unavailable'));
+  });
+
+  it('discards names already collected when a later page fails', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const listTemplates = vi.fn()
+      .mockResolvedValueOnce({ templates: [{ name: 'taro' }], next_cursor: 'cursor-2' })
+      .mockRejectedValue(new Error('boom'));
+    const client = { dataSources: { listTemplates } } as unknown as Client;
+
+    expect(await fetchTemplateNames(client, 'ds-id')).toEqual(new Set());
   });
 });
 
