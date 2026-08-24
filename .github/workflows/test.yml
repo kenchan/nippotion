@@ -12,9 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Currently supported Node.js LTS lines (see engines.node in package.json):
-        # 22 (Maintenance LTS), 24 (Active LTS)
-        node-version: ['22', '24']
+        # Supported Node.js LTS lines plus the current release line
+        # (see engines.node in package.json).
+        node-version: ['22', '24', '26']
     steps:
       - uses: actions/checkout@v7
 
