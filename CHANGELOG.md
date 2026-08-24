@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.0.5](https://github.com/kenchan/nippotion/compare/v0.0.4...v0.0.5) - 2026-08-24
+## [v0.1.0](https://github.com/kenchan/nippotion/compare/v0.0.4...v0.1.0) - 2026-08-24
 
 - Skip unfilled template copies in the pickup draw by @kenchan in https://github.com/kenchan/nippotion/pull/23
 
