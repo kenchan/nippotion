@@ -177,7 +177,7 @@ export const loadConfig = (filePath: string): Config => {
     raw = readFileSync(filePath, 'utf-8');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(t('config.readFailed', { filePath, message }));
+    throw new Error(t('config.readFailed', { filePath, message }), { cause: error });
   }
 
   let data: unknown;
@@ -185,7 +185,7 @@ export const loadConfig = (filePath: string): Config => {
     data = JSON.parse(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(t('config.parseFailed', { filePath, message }));
+    throw new Error(t('config.parseFailed', { filePath, message }), { cause: error });
   }
 
   return validateConfig(data);
