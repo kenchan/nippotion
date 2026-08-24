@@ -130,6 +130,53 @@ describe('validateConfig', () => {
     expect(result.holidays).toBeUndefined();
   });
 
+  it('includes pickup when specified', () => {
+    const result = validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: 30_000 } });
+
+    expect(result.pickup).toEqual({ templateCopyMinEditGapMs: 30_000 });
+  });
+
+  it('omits pickup when not specified', () => {
+    const result = validateConfig(validConfigData);
+
+    expect(result.pickup).toBeUndefined();
+  });
+
+  it('accepts 0 as templateCopyMinEditGapMs, which admits every entry', () => {
+    const result = validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: 0 } });
+
+    expect(result.pickup).toEqual({ templateCopyMinEditGapMs: 0 });
+  });
+
+  it('throws an error naming the key when pickup is not an object', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: 10_000 })).toThrow(/pickup/);
+  });
+
+  it('throws an error naming the key path when templateCopyMinEditGapMs is missing', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: {} }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
+  });
+
+  it('throws an error naming the key path when templateCopyMinEditGapMs has a wrong type', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: '10000' } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
+  });
+
+  it('throws an error naming the key path when templateCopyMinEditGapMs is NaN', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: NaN } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
+  });
+
+  it('throws an error naming the key path when templateCopyMinEditGapMs is negative', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: -1 } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
+  });
+
+  it('throws an error naming the key path when templateCopyMinEditGapMs is not an integer', () => {
+    expect(() => validateConfig({ ...validConfigData, pickup: { templateCopyMinEditGapMs: 10.5 } }))
+      .toThrow(/pickup\.templateCopyMinEditGapMs/);
+  });
+
   it('throws an error naming the key for an unsupported holidays country', () => {
     expect(() => validateConfig({ ...validConfigData, holidays: 'us' })).toThrow(/holidays/);
   });

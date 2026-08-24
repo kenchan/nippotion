@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import dayjs from 'dayjs';
-import { getDateFilter, toEntry } from '../src/notion';
+import { getDateFilter, toEntry, editGapMs, isPickupCandidate, fetchTemplateNames } from '../src/notion';
+import type { Client } from '@notionhq/client';
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 
 // Actual property names are chosen by users in nippotion.json,
@@ -60,6 +61,138 @@ const createPage = (name: string | null, title: string | string[], url: string, 
   };
 };
 
+// editGapMs only reads the two page-level timestamps, so the rest of the page is fixed
+const createPageWithTimes = (created: string, lastEdited: string): PageObjectResponse => ({
+  ...createPage('Taro Tanaka', 'Test Diary', 'https://notion.so/test'),
+  created_time: created,
+  last_edited_time: lastEdited,
+});
+
+describe('editGapMs', () => {
+  it('returns the millisecond difference between creation and last edit', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:20:30.500Z');
+
+    expect(editGapMs(page)).toBe(20 * 60 * 1000 + 30_500);
+  });
+
+  it('returns 0 when the page was never edited after creation', () => {
+    // Minute-granularity stamps land here too: a page created at 10:00:12 and edited at
+    // 10:00:47 arrives with both stamps at 10:00:00, so a sub-minute threshold degrades
+    // to a same-minute check
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:00:00.000Z');
+
+    expect(editGapMs(page)).toBe(0);
+  });
+
+  it('returns 0 when the last edit precedes creation', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T09:59:59.000Z');
+
+    expect(editGapMs(page)).toBe(0);
+  });
+
+  it('returns 0 rather than NaN when a timestamp cannot be parsed', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', 'not a timestamp');
+
+    expect(editGapMs(page)).toBe(0);
+  });
+
+  it('returns 60000 for minute-granularity timestamps one minute apart', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:01:00.000Z');
+
+    expect(editGapMs(page)).toBe(60_000);
+  });
+});
+
+describe('isPickupCandidate', () => {
+  const templateNames = new Set(['yan diary']);
+  const entry = (title: string, gap: number) => ({ title, writerName: null, labels: [], url: 'u', editGapMs: gap });
+
+  it('rejects an entry whose title is a template name and that was never edited', () => {
+    expect(isPickupCandidate(entry('yan diary', 0), templateNames, 10_000)).toBe(false);
+  });
+
+  it('accepts an entry whose title is a template name but that was edited', () => {
+    expect(isPickupCandidate(entry('yan diary', 60_000), templateNames, 10_000)).toBe(true);
+  });
+
+  it('accepts an entry that was never edited but whose title is not a template name', () => {
+    expect(isPickupCandidate(entry('Shipped the mail API fix', 122), templateNames, 10_000)).toBe(true);
+  });
+
+  it('accepts an entry that is neither a template name nor unedited', () => {
+    expect(isPickupCandidate(entry('Shipped the mail API fix', 60_000), templateNames, 10_000)).toBe(true);
+  });
+
+  it('accepts an entry sitting exactly on the threshold', () => {
+    expect(isPickupCandidate(entry('yan diary', 10_000), templateNames, 10_000)).toBe(true);
+  });
+
+  it('accepts every entry when the template name set is empty', () => {
+    expect(isPickupCandidate(entry('yan diary', 0), new Set(), 10_000)).toBe(true);
+  });
+
+  it('accepts every entry when the threshold is 0', () => {
+    expect(isPickupCandidate(entry('yan diary', 0), templateNames, 0)).toBe(true);
+  });
+});
+
+describe('fetchTemplateNames', () => {
+  // withRetry logs each failed attempt, so the failure case would otherwise print noise
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const clientReturning = (...pages: unknown[]) => {
+    const listTemplates = vi.fn();
+    for (const page of pages) listTemplates.mockResolvedValueOnce(page);
+    return { client: { dataSources: { listTemplates } } as unknown as Client, listTemplates };
+  };
+
+  it('collects the names of every template across pages', async () => {
+    const { client, listTemplates } = clientReturning(
+      { templates: [{ name: 'yan diary' }, { name: 'taro' }], next_cursor: 'cursor-2' },
+      { templates: [{ name: 'misohey diary' }], next_cursor: null },
+    );
+
+    const names = await fetchTemplateNames(client, 'ds-id');
+
+    expect(names).toEqual(new Set(['yan diary', 'taro', 'misohey diary']));
+    expect(listTemplates).toHaveBeenCalledTimes(2);
+    expect(listTemplates.mock.calls[1]?.[0]).toMatchObject({ start_cursor: 'cursor-2' });
+  });
+
+  it('stops after a single page when there is no next cursor', async () => {
+    const { client, listTemplates } = clientReturning({ templates: [{ name: 'taro' }], next_cursor: null });
+
+    await fetchTemplateNames(client, 'ds-id');
+
+    expect(listTemplates).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an empty set and reports why when listing fails', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const listTemplates = vi.fn().mockRejectedValue(new Error('templates are unavailable'));
+    const client = { dataSources: { listTemplates } } as unknown as Client;
+
+    const names = await fetchTemplateNames(client, 'ds-id');
+
+    expect(names).toEqual(new Set());
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('templates are unavailable'));
+  });
+
+  it('discards names already collected when a later page fails', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const listTemplates = vi.fn()
+      .mockResolvedValueOnce({ templates: [{ name: 'taro' }], next_cursor: 'cursor-2' })
+      .mockRejectedValue(new Error('boom'));
+    const client = { dataSources: { listTemplates } } as unknown as Client;
+
+    expect(await fetchTemplateNames(client, 'ds-id')).toEqual(new Set());
+  });
+});
+
 describe('getDateFilter', () => {
   it('filters by a single date when the gap is one day', () => {
     const today = dayjs('2026-01-23');
@@ -105,6 +238,7 @@ describe('toEntry', () => {
       writerName: 'Taro Tanaka',
       labels: ['Team A'],
       url: 'https://notion.so/test',
+      editGapMs: 0,
     });
   });
 
@@ -130,6 +264,15 @@ describe('toEntry', () => {
     const entry = toEntry(page, properties);
 
     expect(entry?.writerName).toBeNull();
+  });
+
+  it('carries the edit gap over from the page timestamps', () => {
+    const page = createPage('Taro Tanaka', 'Test Diary', 'https://notion.so/test');
+    page.last_edited_time = '2026-01-23T00:05:00.000Z';
+
+    const entry = toEntry(page, properties);
+
+    expect(entry?.editGapMs).toBe(5 * 60 * 1000);
   });
 
   it('returns an empty labels array when no labels are set', () => {

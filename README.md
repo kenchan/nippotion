@@ -4,7 +4,7 @@ A CLI tool that delivers daily reports (diary entries) written in a Notion datab
 
 - Delivers **the previous business day's** entries on weekday mornings (weekends are skipped; set `"holidays": "jp"` to also skip Japanese holidays via [@holiday-jp/holiday_jp](https://github.com/holiday-jp/holiday_jp). Monday delivers entries dated Friday through Sunday)
 - Routes entries to multiple Slack channels based on their labels (multi-select)
-- Randomly picks one entry each time to feature as the "pickup" entry (chosen from all of the day's entries and shared by every channel, even ones whose labels don't match it)
+- Randomly picks one entry each time to feature as the "pickup" entry (shared by every channel, even ones whose labels don't match it). Unfilled template copies — entries still titled after a template that nobody edited between creation and delivery — are left out of the draw (`pickup.templateCopyMinEditGapMs`)
 - Timezone, holiday skipping, language (Japanese/English), and Slack message wording are all configurable (works for non-Japan offices and English-speaking workspaces too)
 
 ```bash
@@ -108,6 +108,9 @@ To verify it works, trigger it manually from the Actions tab with `debug_mode: t
   "timezone": "America/New_York",
   "language": "en",
   "holidays": "jp",
+  "pickup": {
+    "templateCopyMinEditGapMs": 10000
+  },
   "properties": {
     "title": "Name of the title property",
     "labels": "Name of the multi-select property",
@@ -137,6 +140,16 @@ To verify it works, trigger it manually from the Actions tab with `debug_mode: t
 - `language` sets the default Slack message wording and the log/error message language (`ja` / `en`; **defaults to `NIPPOTION_LANG`, or `en` if neither is set**). Set `"language": "ja"` to use it in Japanese
 - Setting `holidays` to a country code also excludes that country's holidays from business days (**weekends only if omitted**; currently only `jp` — Japanese holidays — is supported). Non-business days are not delivered, and are also skipped when computing "the previous business day" (entries from a holiday arrive together on the next business day)
 - `messages` lets you override individual pieces of Slack wording. All fields are optional (defaults follow `language`). `{database}` is replaced with a link to the database, and `{writer}` with the entry's author name
+- `pickup.templateCopyMinEditGapMs` drops an entry from the **pickup candidates** when **both** of the following hold (default: `10000`, i.e. 10 seconds). Such entries are still delivered to their channels as usual — only the "today's pick" draw skips them. Set `0` to disable the rule and keep every entry as a candidate
+  1. the entry's title matches one of the data source's **template names** exactly, and
+  2. the gap between its `created_time` and its `last_edited_time` is **below** this value — that is, nobody edited it between creation and delivery
+- Neither condition alone is usable: plenty of people leave the title as their template's name and still write a full report, and plenty of reports are composed elsewhere and submitted in a single write. Requiring both is what keeps those two groups in the draw
+- Every run logs the entries it skipped (URL, title, and the measured gap), so you can check what the setting is actually doing
+- **Known limits.** Please read these before turning the threshold up:
+  - A writer who keeps their template's name as the title **and** submits in one write is skipped. In the 3-day sample this rule was built from, that was 2 writers across 4 entries, one of whom was affected on every day of the sample
+  - A template copy whose title is not in the template list — because the template was renamed, or created after the run started — is **not** skipped
+  - If the template list cannot be fetched, **nothing is skipped**. Listing templates requires the data source to be shared with your integration, and the endpoint is documented against a newer `Notion-Version` than the Notion SDK sends by default. Rather than guess, nippotion logs the reason and leaves every entry in the draw
+- Notion is not documented to guarantee sub-second precision on these timestamps. Where it reports them at minute granularity the gap lands on multiples of 60000, and any threshold below a minute behaves as "created and last edited within the same minute" — the same intent, so no configuration change is needed
 
 ### Example: Japanese setup
 

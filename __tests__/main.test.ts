@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Entry } from '../src/notion';
 
-const { postMessage, getDatabaseInfo, getAllPages, toEntry } = vi.hoisted(() => ({
+const { postMessage, getDatabaseInfo, getAllPages, toEntry, fetchTemplateNames } = vi.hoisted(() => ({
   postMessage: vi.fn(),
   getDatabaseInfo: vi.fn(),
   getAllPages: vi.fn(),
   toEntry: vi.fn(),
+  fetchTemplateNames: vi.fn(),
 }));
 
 // Replace only the network boundaries (Slack client and Notion accessors);
@@ -21,17 +22,75 @@ vi.mock('@slack/web-api', () => ({
 
 vi.mock('../src/notion.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/notion.js')>();
-  return { ...actual, getDatabaseInfo, getAllPages, toEntry };
+  return { ...actual, getDatabaseInfo, getAllPages, toEntry, fetchTemplateNames };
 });
 
-import { main } from '../src/main';
+import { main, selectPickup } from '../src/main';
 
 const testEntry: Entry = {
   title: 'Test Diary',
   writerName: 'Taro Tanaka',
   labels: ['A', 'B'],
   url: 'https://notion.so/test',
+  editGapMs: 60_000,
 };
+
+const entryWithGap = (gap: number, overrides: Partial<Entry> = {}): Entry =>
+  ({ ...testEntry, editGapMs: gap, ...overrides });
+
+describe('selectPickup', () => {
+  // Always draws the first candidate, so the filtering is what the assertions observe
+  const firstRng = () => 0;
+  const templateNames = new Set(['Test Diary']);
+
+  it('returns null when there are no entries at all', () => {
+    expect(selectPickup([], templateNames, 10_000, firstRng)).toBeNull();
+  });
+
+  it('returns null when every entry is an unedited template copy', () => {
+    const entries = [entryWithGap(0), entryWithGap(9_999)];
+
+    expect(selectPickup(entries, templateNames, 10_000, firstRng)).toBeNull();
+  });
+
+  it('keeps every entry when the template name set is empty', () => {
+    const entries = [entryWithGap(0), entryWithGap(9_999)];
+
+    expect(selectPickup(entries, new Set(), 10_000, firstRng)).not.toBeNull();
+  });
+
+  it('keeps an entry titled after a template that its writer went on to edit', () => {
+    expect(selectPickup([entryWithGap(60_000)], templateNames, 10_000, firstRng)).not.toBeNull();
+  });
+
+  it('keeps an unedited entry whose title is not a template name', () => {
+    const written = entryWithGap(122, { title: 'Shipped the mail API fix' });
+
+    expect(selectPickup([written], templateNames, 10_000, firstRng)?.title).toBe('Shipped the mail API fix');
+  });
+
+  it('drops only the unedited template copy and picks from the rest', () => {
+    const copy = entryWithGap(0);
+    const written = entryWithGap(122, { title: 'Shipped the mail API fix' });
+
+    expect(selectPickup([copy, written], templateNames, 10_000, firstRng)?.title).toBe('Shipped the mail API fix');
+  });
+
+  it('picks across all candidates rather than always the first', () => {
+    const first = entryWithGap(60_000, { title: 'First' });
+    const second = entryWithGap(60_000, { title: 'Second' });
+
+    expect(selectPickup([first, second], templateNames, 10_000, () => 0.99)?.title).toBe('Second');
+  });
+
+  it('treats an entry sitting exactly on the threshold as a candidate', () => {
+    expect(selectPickup([entryWithGap(10_000)], templateNames, 10_000, firstRng)).not.toBeNull();
+  });
+
+  it('admits every entry when the threshold is 0', () => {
+    expect(selectPickup([entryWithGap(0)], templateNames, 0, firstRng)).not.toBeNull();
+  });
+});
 
 describe('main', () => {
   let configDir: string;
@@ -62,6 +121,7 @@ describe('main', () => {
 
     getDatabaseInfo.mockResolvedValue({ url: 'https://notion.so/db', title: 'Daily Notes', propertyIds: ['p1'] });
     getAllPages.mockResolvedValue([]);
+    fetchTemplateNames.mockResolvedValue(new Set<string>());
     postMessage.mockResolvedValue({ ok: true });
 
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -116,6 +176,19 @@ describe('main', () => {
     const channels = postMessage.mock.calls.map(([args]) => args.channel);
     expect(channels).toEqual(['C-A', 'C-B']);
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it('logs the entries dropped from pickup candidates', async () => {
+    getAllPages.mockResolvedValue([{}]);
+    fetchTemplateNames.mockResolvedValue(new Set([testEntry.title]));
+    toEntry.mockReturnValue({ ...testEntry, editGapMs: 0 });
+
+    await main();
+
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Skipped from pickup candidates'),
+      expect.stringContaining('https://notion.so/test'),
+    );
   });
 
   it('keeps delivering to the remaining recipients and sets exitCode to 1 when posting fails', async () => {
