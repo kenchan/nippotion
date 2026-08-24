@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.0.5](https://github.com/kenchan/nippotion/compare/v0.0.4...v0.0.5) - 2026-08-24
+
+- Skip unfilled template copies in the pickup draw by @kenchan in https://github.com/kenchan/nippotion/pull/23
+
 ## [v0.0.4](https://github.com/kenchan/nippotion/compare/v0.0.3...v0.0.4) - 2026-08-24
 
 - Fix GitHub Actions example: nippotion@1 does not resolve by @kenchan in https://github.com/kenchan/nippotion/pull/4
