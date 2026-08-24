@@ -80,9 +80,10 @@ export interface Entry {
 // the same intent, so no separate handling is needed
 export const editGapMs = (page: PageObjectResponse): number => {
   const gap = Date.parse(page.last_edited_time) - Date.parse(page.created_time);
-  // Clamped rather than returned as-is so that a threshold of 0 really admits every entry:
-  // an unexpected negative gap would otherwise stay below the threshold and be dropped
-  return Math.max(0, gap);
+  // Floored at 0 so that a threshold of 0 really admits every entry: a negative gap, or the
+  // NaN an unparseable timestamp yields, would otherwise compare false against every
+  // threshold and drop the entry even where the setting is meant to disable the skip
+  return Number.isFinite(gap) ? Math.max(0, gap) : 0;
 };
 
 // Exported so that the caller can log exactly the entries selectPickup drops,

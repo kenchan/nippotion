@@ -89,6 +89,12 @@ describe('editGapMs', () => {
     expect(editGapMs(page)).toBe(0);
   });
 
+  it('returns 0 rather than NaN when a timestamp cannot be parsed', () => {
+    const page = createPageWithTimes('2026-01-23T10:00:00.000Z', 'not a timestamp');
+
+    expect(editGapMs(page)).toBe(0);
+  });
+
   it('returns 60000 for minute-granularity timestamps one minute apart', () => {
     const page = createPageWithTimes('2026-01-23T10:00:00.000Z', '2026-01-23T10:01:00.000Z');
 
