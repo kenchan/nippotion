@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.1](https://github.com/kenchan/nippotion/compare/v0.1.0...v0.1.1) - 2026-09-14
+
+- Bump the production-minor-and-patch group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/kenchan/nippotion/pull/28
+
 ## [v0.1.0](https://github.com/kenchan/nippotion/compare/v0.0.4...v0.1.0) - 2026-08-24
 
 - Skip unfilled template copies in the pickup draw by @kenchan in https://github.com/kenchan/nippotion/pull/23
