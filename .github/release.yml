@@ -3,3 +3,4 @@ changelog:
     labels:
       - tagpr
       - skip-changelog
+      - github_actions
