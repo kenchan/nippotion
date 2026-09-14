@@ -1,0 +1,26 @@
+name: Label routine dependabot updates
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - if: steps.metadata.outputs.dependency-type != 'direct:production'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" \
+            -f 'labels[]=skip-changelog'
