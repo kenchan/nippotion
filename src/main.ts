@@ -1,4 +1,5 @@
-import { Client } from '@notionhq/client';
+// Default import on purpose: see the note on the same import in notion.ts.
+import notion from '@notionhq/client';
 import { WebClient } from '@slack/web-api';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
@@ -56,7 +57,7 @@ export const main = async () => {
   const today = config.timezone ? dayjs().tz(config.timezone) : dayjs();
   if (isWeekendOrHoliday(today, config.holidays)) return;
 
-  const client = new Client({
+  const client = new notion.Client({
     auth: process.env.NOTION_API_TOKEN,
     timeoutMs: 120000, // extended from the 60s default
   });
