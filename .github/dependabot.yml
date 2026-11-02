@@ -9,9 +9,7 @@ updates:
       time: "09:00"
       timezone: "Asia/Tokyo"
     cooldown:
-      semver-major-days: 30
-      semver-minor-days: 7
-      semver-patch-days: 3
+      default-days: 7
     ignore:
       # TypeScript 7 has no programmatic API yet and is unsupported by typescript-eslint.
       # Keep receiving TypeScript 6 minor and patch updates until the toolchain catches up.
