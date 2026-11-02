@@ -37,3 +37,8 @@ jobs:
 
       - name: Run build
         run: npm run build
+
+      # Tests run through Vite's module interop, so only loading the built
+      # bundle with plain Node catches ESM/CommonJS import breakage
+      - name: Smoke test built CLI
+        run: node dist/cli.js --help

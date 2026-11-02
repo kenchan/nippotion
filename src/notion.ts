@@ -1,4 +1,7 @@
-import { Client, isFullPage, collectPaginatedAPI } from '@notionhq/client';
+// Named imports of runtime values from this CommonJS package fail under Node 22's ESM loader
+// since 5.30.0 ("Named export 'Client' not found"), so go through the default export.
+import notion from '@notionhq/client';
+import type { Client } from '@notionhq/client';
 import type { Dayjs } from 'dayjs';
 import type { PageObjectResponse, DataSourceObjectResponse, QueryDataSourceParameters } from '@notionhq/client/build/src/api-endpoints';
 import { withRetry } from './retry.js';
@@ -52,7 +55,7 @@ export const getDatabaseInfo = async (client: Client, dataSourceId: string, requ
 export const getAllPages = async (client: Client, dataSourceId: string, filter: QueryDataSourceParameters['filter'], filterProperties?: string[]): Promise<PageObjectResponse[]> => {
   // Wrap the listFn itself in withRetry so retries apply per page
   // (wrapping the whole call would refetch already-retrieved pages from scratch)
-  const results = await collectPaginatedAPI(
+  const results = await notion.collectPaginatedAPI(
     (args: QueryDataSourceParameters) => withRetry(() => client.dataSources.query(args)),
     {
       data_source_id: dataSourceId,
@@ -60,7 +63,7 @@ export const getAllPages = async (client: Client, dataSourceId: string, filter: 
       filter_properties: filterProperties,
     }
   );
-  return results.filter(isFullPage);
+  return results.filter(notion.isFullPage);
 };
 
 // Domain type holding only the values needed for delivery, extracted from a Notion page.
