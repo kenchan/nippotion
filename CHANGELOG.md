@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.1](https://github.com/kenchan/nippotion/compare/v0.1.0...v0.1.1) - 2026-11-02
+
+- Bump the production-minor-and-patch group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/kenchan/nippotion/pull/28
+- Bump the production-minor-and-patch group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/kenchan/nippotion/pull/41
+- Fix startup crash on Node 22 with @notionhq/client 5.30.0 by @kenchan in https://github.com/kenchan/nippotion/pull/46
+- Unify npm Dependabot cooldown to 7 days by @kenchan in https://github.com/kenchan/nippotion/pull/45
+
 ## [v0.1.0](https://github.com/kenchan/nippotion/compare/v0.0.4...v0.1.0) - 2026-08-24
 
 - Skip unfilled template copies in the pickup draw by @kenchan in https://github.com/kenchan/nippotion/pull/23
