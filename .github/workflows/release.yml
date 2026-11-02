@@ -12,6 +12,7 @@ jobs:
   tagpr:
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     outputs:
@@ -25,6 +26,16 @@ jobs:
         uses: Songmu/tagpr@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pushes made with GITHUB_TOKEN don't trigger pull_request workflows, so the
+      # release PR would never get the checks the main ruleset requires.
+      # workflow_dispatch is exempt from that rule.
+      - name: Run tests on the release PR
+        if: steps.tagpr.outputs.pull_request != ''
+        run: gh workflow run test.yml --ref "$RELEASE_BRANCH"
+        env:
+          RELEASE_BRANCH: ${{ fromJSON(steps.tagpr.outputs.pull_request).head.ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Runs as a job in this same workflow run (not a separate on:push:tags workflow),
   # because tags pushed by the default GITHUB_TOKEN don't trigger other workflows
