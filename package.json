@@ -20,7 +20,7 @@
     "@slack/web-api": "^8.0.0",
     "dayjs": "^1.11.21",
     "i18next": "^26.3.6",
-    "p-retry": "^8.0.0"
+    "p-retry": "^9.0.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
