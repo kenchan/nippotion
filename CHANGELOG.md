@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.2](https://github.com/kenchan/nippotion/compare/v0.1.1...v0.1.2) - 2026-11-02
+
+- Bump i18next from 26.4.3 to 26.5.11 in the production-minor-and-patch group by @dependabot[bot] in https://github.com/kenchan/nippotion/pull/48
+
 ## [v0.1.1](https://github.com/kenchan/nippotion/compare/v0.1.0...v0.1.1) - 2026-11-02
 
 - Bump the production-minor-and-patch group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/kenchan/nippotion/pull/28
